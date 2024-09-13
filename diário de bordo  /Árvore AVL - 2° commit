@@ -1,0 +1,286 @@
+//Aluno: Frederico Luck de Oliveira
+//Turma: Estrutura de Dados II, CC6N
+
+#include <stdio.h>
+#include <stdlib.h>
+
+// Estrutura para representar um nó da árvore AVL
+struct NoArvore {
+    int valor;
+    int altura;
+    struct NoArvore *esq;  // Ponteiro para o filho esquerdo
+    struct NoArvore *dir;  // Ponteiro para o filho direito
+};
+
+// Função para criar um novo nó
+struct NoArvore *criaNovoNo(int valor) {
+    struct NoArvore *novoNo = (struct NoArvore *)malloc(sizeof(struct NoArvore));
+    if (novoNo == NULL) {
+        printf("Erro de memoria\n");
+        return NULL;
+    }
+
+    // Inicializa o novo nó com o valor dado e altura 0 (folha)
+    novoNo->valor = valor;
+    novoNo->esq = NULL;
+    novoNo->dir = NULL;
+    novoNo->altura = 0;
+    return novoNo;
+}
+
+// Função para calcular a altura de um nó
+int calcularAltura(struct NoArvore *no) {
+    if (no == NULL) {
+        return -1;
+    }
+    return no->altura;
+}
+
+// Função para calcular o fator de balanceamento de um nó (altura da esquerda - altura da direita)
+int calcularFatorBalanceamento(struct NoArvore *no) {
+    if (no == NULL) {
+        return 0;
+    }
+
+    return calcularAltura(no->esq) - calcularAltura(no->dir);
+}
+
+// Função para realizar uma rotação à direita em um nó
+struct NoArvore *rotacaoDireita(struct NoArvore *no) {
+    struct NoArvore *novoNo = no->esq;
+    struct NoArvore *subArvore = novoNo->dir;
+
+    // Realiza a rotação
+    novoNo->dir = no;
+    no->esq = subArvore;
+
+    // Atualiza as alturas
+    no->altura = 1 + (calcularAltura(no->esq) > calcularAltura(no->dir) ? calcularAltura(no->esq) : calcularAltura(no->dir));
+    novoNo->altura = 1 + (calcularAltura(novoNo->esq) > calcularAltura(novoNo->dir) ? calcularAltura(novoNo->esq) : calcularAltura(novoNo->dir));
+
+    return novoNo;  // Retorna a nova raiz
+}
+
+// Função para encontrar o menor valor da subárvore (necessária na remoção)
+struct NoArvore *encontrarMinimo(struct NoArvore *no) {
+    struct NoArvore *atual = no;
+    while (atual->esq != NULL) {
+        atual = atual->esq;
+    }
+    return atual;
+}
+
+// Função para realizar uma rotação à esquerda em um nó
+struct NoArvore *rotacaoEsquerda(struct NoArvore *no) {
+    struct NoArvore *novoNo = no->dir;
+    struct NoArvore *subArvore = novoNo->esq;
+
+    // Realiza a rotação
+    novoNo->esq = no;
+    no->dir = subArvore;
+
+    // Atualiza as alturas
+    no->altura = 1 + (calcularAltura(no->esq) > calcularAltura(no->dir) ? calcularAltura(no->esq) : calcularAltura(no->dir));
+    novoNo->altura = 1 + (calcularAltura(novoNo->esq) > calcularAltura(novoNo->dir) ? calcularAltura(novoNo->esq) : calcularAltura(novoNo->dir));
+
+    return novoNo;  // Retorna a nova raiz
+}
+
+// Função para balancear a árvore após inserção ou remoção
+struct NoArvore *realizarBalanceamento(struct NoArvore *raiz, int valor) {
+    if (raiz == NULL) {
+        return raiz;
+    }
+
+    // Atualiza a altura do nó
+    raiz->altura = 1 + (calcularAltura(raiz->esq) > calcularAltura(raiz->dir) ? calcularAltura(raiz->esq) : calcularAltura(raiz->dir));
+
+    // Verifica o fator de balanceamento
+    int bal = calcularFatorBalanceamento(raiz);
+
+    // Caso de rotação direita (subárvore esquerda está desbalanceada)
+    if (bal > 1 && valor < raiz->esq->valor) {
+        return rotacaoDireita(raiz);
+    }
+
+    // Caso de rotação esquerda (subárvore direita está desbalanceada)
+    if (bal < -1 && valor > raiz->dir->valor) {
+        return rotacaoEsquerda(raiz);
+    }
+
+    // Caso de rotação esquerda-direita (subárvore esquerda está desbalanceada para a direita)
+    if (bal > 1 && valor > raiz->esq->valor) {
+        raiz->esq = rotacaoEsquerda(raiz->esq);
+        return rotacaoDireita(raiz);
+    }
+
+    // Caso de rotação direita-esquerda (subárvore direita está desbalanceada para a esquerda)
+    if (bal < -1 && valor < raiz->dir->valor) {
+        raiz->dir = rotacaoDireita(raiz->dir);
+        return rotacaoEsquerda(raiz);
+    }
+
+    return raiz;  // Retorna a raiz (pode ou não ter mudado após o balanceamento)
+}
+
+// Função para inserir um valor na árvore AVL
+struct NoArvore *inserir(struct NoArvore *raiz, int valor) {
+    // Inserção como em uma árvore binária normal
+    if (raiz == NULL) {
+        return criaNovoNo(valor);
+    }
+
+    if (valor < raiz->valor) {
+        raiz->esq = inserir(raiz->esq, valor);
+    } else if (valor > raiz->valor) {
+        raiz->dir = inserir(raiz->dir, valor);
+    } else {
+        return raiz;  // Se o valor já existe, não faz nada
+    }
+
+    // Realiza o balanceamento da árvore após a inserção
+    return realizarBalanceamento(raiz, valor);
+}
+
+// Função para remover um valor da árvore AVL
+struct NoArvore *remover(struct NoArvore *raiz, int valor) {
+    if (raiz == NULL) {
+        return raiz;
+    }
+
+    // Passo 1: Remover o nó como em uma árvore binária de busca normal
+    if (valor < raiz->valor) {
+        raiz->esq = remover(raiz->esq, valor);
+    } else if (valor > raiz->valor) {
+        raiz->dir = remover(raiz->dir, valor);
+    } else {
+        // Nó encontrado: precisa ser removido
+        if (raiz->esq == NULL || raiz->dir == NULL) {
+            struct NoArvore *temp = raiz->esq ? raiz->esq : raiz->dir;
+
+            if (temp == NULL) {
+                // Caso 1: Sem filhos
+                temp = raiz;
+                raiz = NULL;
+            } else {
+                // Caso 2: Um filho
+                *raiz = *temp;  // Cópia dos dados do filho
+            }
+            free(temp);
+        } else {
+            // Caso 3: Dois filhos
+            struct NoArvore *temp = encontrarMinimo(raiz->dir);
+            raiz->valor = temp->valor;
+            raiz->dir = remover(raiz->dir, temp->valor);
+        }
+    }
+
+    // Se a árvore ficou vazia, retorna
+    if (raiz == NULL) {
+        return raiz;
+    }
+
+    // Passo 2: Atualiza a altura do nó atual
+    raiz->altura = 1 + (calcularAltura(raiz->esq) > calcularAltura(raiz->dir) ? calcularAltura(raiz->esq) : calcularAltura(raiz->dir));
+
+    // Passo 3: Realiza o balanceamento da árvore
+    int bal = calcularFatorBalanceamento(raiz);
+
+    if (bal > 1 && calcularFatorBalanceamento(raiz->esq) >= 0) {
+        return rotacaoDireita(raiz);
+    }
+
+    if (bal > 1 && calcularFatorBalanceamento(raiz->esq) < 0) {
+        raiz->esq = rotacaoEsquerda(raiz->esq);
+        return rotacaoDireita(raiz);
+    }
+
+    if (bal < -1 && calcularFatorBalanceamento(raiz->dir) <= 0) {
+        return rotacaoEsquerda(raiz);
+    }
+
+    if (bal < -1 && calcularFatorBalanceamento(raiz->dir) > 0) {
+        raiz->dir = rotacaoDireita(raiz->dir);
+        return rotacaoEsquerda(raiz);
+    }
+
+    return raiz;
+}
+
+// Função para buscar um valor na árvore AVL
+struct NoArvore* buscar(struct NoArvore* raiz, int valor) {
+    if (raiz == NULL) {
+        printf("Valor %d não encontrado.\n", valor);
+        return NULL;
+    }
+
+    if (valor == raiz->valor) {
+        printf("Valor %d encontrado.\n", valor);
+        return raiz;
+    }
+
+    if (valor < raiz->valor) {
+        return buscar(raiz->esq, valor);
+    } else {
+        return buscar(raiz->dir, valor);
+    }
+}
+
+// Função para imprimir a árvore (visualização)
+void imprimeArvore(struct NoArvore *raiz, int espaco) {
+    if (raiz == NULL) {
+        return;
+    }
+
+    espaco += 5;
+
+    imprimeArvore(raiz->dir, espaco);
+
+    printf("\n");
+    for (int i = 5; i < espaco; i++) {
+        printf(" ");
+    }
+    printf("%d\n", raiz->valor);
+
+    imprimeArvore(raiz->esq, espaco);
+}
+
+// Função principal para testar as operações
+int main(void) {
+    struct NoArvore *raiz = NULL;
+
+    // Inserção de elementos na árvore
+    raiz = inserir(raiz, 12);
+    raiz = inserir(raiz, 56);
+    raiz = inserir(raiz, 6);
+    raiz = inserir(raiz, 32);
+    raiz = inserir(raiz, 2);
+    raiz = inserir(raiz, 10);
+    raiz = inserir(raiz, 80);
+    
+    // Buscando valores
+    buscar(raiz, 12);  // Valor presente
+    buscar(raiz, 32);  // Valor presente
+    buscar(raiz, 50);  // Valor ausente
+
+    printf("\n\n\nÁrvore completa\n");
+    // Imprimindo a árvore antes da remoção
+    imprimeArvore(raiz, 0);
+
+    printf("\n\n\n");
+
+    // Removendo um valor e imprimindo a árvore depois da remoção
+    raiz = remover(raiz, 32);
+    printf("\n\n\nÁrvore após remoção do 32\n");
+    imprimeArvore(raiz, 5);
+
+    printf("\n\n\n");
+    
+    // Inserindo um valor que deixa a árvore desbalanceada, ocorrendo uma
+    // Rotação simples à esquerda
+    inserir(raiz, 90);
+    printf("\n\n\nÁrvore balanceada após inserção do número 90\n");
+    imprimeArvore(raiz, 5);
+
+    return 0;
+}
